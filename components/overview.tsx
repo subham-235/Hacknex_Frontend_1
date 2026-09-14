@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useApp } from './app-provider';
+import { HeroScrollDemo } from './demo';
 export default function Overview({
   onNavigate,
 }: {
@@ -151,6 +152,7 @@ export default function Overview({
           <p>No alerts yet. Add a trusted contact to get started.</p>
         )}
       </section>
+      <HeroScrollDemo />
     </>
   );
 }
