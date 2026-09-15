@@ -9,6 +9,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { api, useApp } from './app-provider';
+import { SafetyOrbit } from './safety-orbit';
 export function Field({
   label,
   children,
@@ -127,8 +128,8 @@ export function Auth() {
           Bring your trusted contacts, emergency alerts, and thoughtful
           follow-up into one place.
         </p>
-        <div className="auth-seal">S</div>
-        <small>Your account connects to your Suraksha backend.</small>
+        <SafetyOrbit />
+        <small>Your people. Your voice. Your safety space.</small>
       </div>
       <form
         className="card auth-form"
@@ -210,7 +211,7 @@ export function Auth() {
           Explore the demo
         </Button>
         <p className="fine">
-          Demo mode works without MongoDB, Redis, or API keys.
+          Take a look around with sample data. No alerts are sent.
         </p>
       </form>
     </section>

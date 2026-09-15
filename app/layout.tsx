@@ -1,5 +1,6 @@
 ﻿import type { Metadata } from 'next';
 import './globals.css';
+import './redesign.css';
 export const metadata: Metadata = {
   metadataBase: new URL(
     'https://suraksha-safety-workspace.sarmisthaad.chatgpt.site',
@@ -20,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body>{children}</body>
     </html>
   );

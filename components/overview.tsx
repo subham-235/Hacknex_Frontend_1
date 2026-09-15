@@ -1,158 +1,364 @@
 'use client';
+import { useEffect, useRef, type CSSProperties } from 'react';
+import { motion, animate, stagger, useReducedMotion } from 'framer-motion';
 import {
   ShieldCheck,
-  Siren,
+  Mic,
   ArrowRight,
   ArrowUpRight,
   Bot,
+  Users,
+  Activity,
+  MapPin,
+  Plus,
+  Radio,
+  Sparkles,
+  Check,
+  Clock3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SpotlightCard } from '@/components/ui/spotlight-card';
 import { useApp } from './app-provider';
+import { SafetyOrbit } from './safety-orbit';
 import { HeroScrollDemo } from './demo';
+
+function AnimatedNumber({ value }: { value: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const reduced = useReducedMotion();
+  useEffect(() => {
+    if (reduced) {
+      if (ref.current) ref.current.textContent = String(value);
+      return;
+    }
+    const animation = animate(0, value, {
+      duration: 0.85,
+      ease: 'easeOut',
+      onUpdate: (current) => {
+        if (ref.current) ref.current.textContent = String(Math.round(current));
+      },
+    });
+    return () => animation.stop();
+  }, [value, reduced]);
+  return (
+    <>
+      <span ref={ref} aria-hidden="true">
+        {value}
+      </span>
+      <span className="sr-only">{value}</span>
+    </>
+  );
+}
 export default function Overview({
   onNavigate,
 }: {
   onNavigate: (view: string) => void;
 }) {
   const { contacts, sessions, history, demo } = useApp();
+  const active = contacts.filter((c) => c.isActive);
+  const openSessions = sessions.filter(
+    (s) => !['resolved', 'expired'].includes(s.status),
+  );
+  const reduced = useReducedMotion();
+  const stats = [
+    {
+      label: 'Your trusted circle',
+      value: active.length,
+      detail: 'active contacts',
+      icon: Users,
+      tone: 'mint',
+      view: 'Trusted contacts',
+    },
+    {
+      label: 'Safety agent',
+      value: openSessions.length,
+      detail: 'open follow-ups',
+      icon: Bot,
+      tone: 'violet',
+      view: 'Safety agent',
+    },
+    {
+      label: 'Alert activity',
+      value: history.length,
+      detail: demo ? 'sample alerts' : 'recorded alerts',
+      icon: Activity,
+      tone: 'peach',
+      view: 'Alert history',
+    },
+  ];
   return (
-    <>
-      <div className="stats-row">
-        <div>
-          <span>Trusted contacts</span>
-          <strong>
-            {contacts.filter((c) => c.isActive).length}
-            <small>active in your circle</small>
-          </strong>
-        </div>
-        <div>
-          <span>Agent sessions</span>
-          <strong>
-            {
-              sessions.filter(
-                (s) => !['resolved', 'expired'].includes(s.status),
-              ).length
-            }
-            <small>open follow-ups</small>
-          </strong>
-        </div>
-        <div>
-          <span>Recorded alerts</span>
-          <strong>
-            {history.length}
-            <small>{demo ? 'illustrative history' : 'recent history'}</small>
-          </strong>
-        </div>
-      </div>
-      <section className="overview-grid">
-        <article className="sos-hero">
-          <span className="badge">
-            <span className="dot" /> HERE WHEN YOU NEED IT
+    <motion.div
+      className="overview-content"
+      initial="hidden"
+      animate="visible"
+      variants={{
+        hidden: {},
+        visible: { transition: { delayChildren: stagger(reduced ? 0 : 0.08) } },
+      }}
+    >
+      <motion.section
+        className="command-hero"
+        variants={{
+          hidden: { opacity: 0, y: reduced ? 0 : 15 },
+          visible: { opacity: 1, y: 0 },
+        }}
+      >
+        <div className="hero-copy">
+          <span className="hero-kicker">
+            <span className="dot" /> A LITTLE PEACE OF MIND
           </span>
           <h2>
-            Your voice.
+            Go live your life.
             <br />
-            Their signal to help.
+            <span>Keep your circle close.</span>
           </h2>
           <p>
-            Record what’s happening. Suraksha can assess your message and alert
-            your trusted contacts.
+            Your voice. Your people. One connected space.
+            <br />A little more confidence, wherever the day takes you.
           </p>
+          <div className="actions">
+            <Button
+              onClick={() => onNavigate('Emergency SOS')}
+              className="hero-primary"
+            >
+              <Mic size={17} /> Open voice guard <ArrowUpRight size={16} />
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => onNavigate('Trusted contacts')}
+            >
+              My safety circle <ArrowRight size={15} />
+            </Button>
+          </div>
+          <div className="hero-footnote">
+            <ShieldCheck size={13} /> Microphone stays off until you activate
+            it.
+          </div>
+        </div>
+        <SafetyOrbit />
+      </motion.section>
+      <section className="metric-grid" aria-label="Your safety summary">
+        {stats.map(({ label, value, detail, icon: Icon, tone, view }) => (
+          <motion.div
+            key={label}
+            variants={{
+              hidden: { opacity: 0, y: reduced ? 0 : 18 },
+              visible: { opacity: 1, y: 0 },
+            }}
+          >
+            <button
+              className={`metric-card ${tone}`}
+              onClick={() => onNavigate(view)}
+            >
+              <div className="metric-heading">
+                <span className="metric-icon">
+                  <Icon size={19} />
+                </span>
+                <span>{label}</span>
+                <ArrowUpRight size={16} />
+              </div>
+              <div className="metric-value">
+                <AnimatedNumber value={value} />
+                <small>{detail}</small>
+              </div>
+              <div className="metric-line" />
+            </button>
+          </motion.div>
+        ))}
+      </section>
+      <div className="dashboard-grid">
+        <SpotlightCard className="voice-card">
+          <div className="section-heading">
+            <span className="feature-label">
+              <Radio size={16} /> VOICE GUARD
+            </span>
+            <span className="standby">
+              <span /> Standby
+            </span>
+          </div>
+          <div className="voice-card-body">
+            <div>
+              <h2>
+                A voice can be
+                <br />a lifeline.
+              </h2>
+              <p>
+                When something feels wrong, let your people know. Start with
+                your voice.
+              </p>
+            </div>
+            <div className="waveform" aria-hidden="true">
+              {Array.from({ length: 23 }, (_, i) => (
+                <i
+                  key={i}
+                  style={
+                    {
+                      '--bar-height': `${14 + Math.sin(i * 1.7) ** 2 * 54}px`,
+                      '--bar-delay': `${i * -0.11}s`,
+                    } as CSSProperties
+                  }
+                />
+              ))}
+            </div>
+          </div>
           <Button
-            className="sos-button"
+            className="voice-cta"
             onClick={() => onNavigate('Emergency SOS')}
           >
-            <Siren /> Prepare an SOS <ArrowRight />
+            <Mic /> Open voice guard <ArrowRight />
           </Button>
-          <small>You review before sending an alert.</small>
-          <div className="signal-orbit">
-            <Siren size={56} />
+          <p className="fine">Review monitoring details before activating.</p>
+        </SpotlightCard>
+        <SpotlightCard className="circle-card">
+          <div className="section-heading">
+            <span className="feature-label">
+              <Users size={16} /> YOUR PEOPLE
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Manage trusted contacts"
+              onClick={() => onNavigate('Trusted contacts')}
+            >
+              <Plus />
+            </Button>
           </div>
-        </article>
-        <article className="card readiness">
-          <div className="card-heading">
-            <ShieldCheck />
-            <span>YOUR SAFETY CHECK</span>
-          </div>
-          <h2>A stronger safety circle.</h2>
-          <p>Small steps that help you be prepared.</p>
-          <div className="check-row">
-            <span className="check-number">01</span>
-            <div>
-              <strong>Add someone you trust</strong>
-              <small>Choose who receives your SOS.</small>
-            </div>
-            <ArrowUpRight size={17} />
-          </div>
-          <div className="check-row">
-            <span className="check-number">02</span>
-            <div>
-              <strong>Enable location when needed</strong>
-              <small>Share a more useful call for help.</small>
-            </div>
-            <ArrowUpRight size={17} />
-          </div>
-          <div className="check-row">
-            <span className="check-number">03</span>
-            <div>
-              <strong>Stay in control of follow-ups</strong>
-              <small>Review the agent’s proposed actions.</small>
-            </div>
-            <ArrowUpRight size={17} />
-          </div>
-        </article>
-      </section>
-      <section className="card agent-intro">
-        <div className="agent-icon">
-          <Bot />
-        </div>
-        <div>
-          <p className="eyebrow">MEET YOUR SAFETY AGENT</p>
-          <h2>Support that follows through.</h2>
-          <p>
-            Track delivery, review suggested follow-ups, and close an alert when
-            you’re safe.
-          </p>
-        </div>
-        <Button variant="outline" onClick={() => onNavigate('Safety agent')}>
-          Explore agent <ArrowRight />
-        </Button>
-      </section>
-      <section className="card">
-        <div className="section-heading">
-          <div>
-            <h2>Your latest activity</h2>
-            <p>Keep track of your safety conversations.</p>
-          </div>
-          <Button variant="ghost" onClick={() => onNavigate('Alert history')}>
-            View history <ArrowRight />
-          </Button>
-        </div>
-        {history.length ? (
-          history.slice(0, 3).map((h) => (
-            <div className="delivery-row" key={h._id}>
-              <div>
-                <strong>{h.summary || 'Emergency alert'}</strong>
-                <small>
-                  {new Date(h.createdAt).toLocaleDateString('en-IN', {
-                    timeZone: 'Asia/Kolkata',
-                  })}{' '}
-                  ? {demo ? 'Demo entry' : h.severity}
-                </small>
+          <h2>Better, together.</h2>
+          <p>Your trusted circle is a good place to start.</p>
+          <div className="circle-people">
+            {contacts.slice(0, 3).map((c, i) => (
+              <div className="person-row" key={c._id}>
+                <span className={`person-avatar tone-${i}`}>
+                  {c.contacts.slice(0, 1)}
+                </span>
+                <div>
+                  <strong>{c.contacts}</strong>
+                  <small>
+                    {c.isActive ? 'Included in SMS alerts' : 'Alerts paused'}
+                  </small>
+                </div>
+                <span
+                  className={
+                    c.isActive ? 'person-state active' : 'person-state'
+                  }
+                >
+                  {c.isActive ? <Check size={14} /> : <Clock3 size={14} />}
+                </span>
               </div>
-              <Button
-                variant="outline"
-                onClick={() => onNavigate('Alert history')}
-              >
-                Details
-              </Button>
+            ))}
+            {contacts.length === 0 && (
+              <p className="fine">
+                Add your first contact to build your circle.
+              </p>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => onNavigate('Trusted contacts')}
+          >
+            Manage my circle <ArrowUpRight />
+          </Button>
+        </SpotlightCard>
+        <SpotlightCard className="agent-banner">
+          <div className="agent-icon">
+            <Sparkles />
+          </div>
+          <div>
+            <span className="feature-label">A LITTLE EXTRA SUPPORT</span>
+            <h2>Meet your safety agent.</h2>
+            <p>
+              Follow the alert. Review the next step. Close the loop when you’re
+              safe.
+            </p>
+          </div>
+          <Button variant="outline" onClick={() => onNavigate('Safety agent')}>
+            Explore agent <ArrowRight />
+          </Button>
+        </SpotlightCard>
+        <SpotlightCard className="activity-card">
+          <div className="section-heading">
+            <div>
+              <span className="feature-label">THE LATEST</span>
+              <h2>Your safety timeline</h2>
             </div>
-          ))
-        ) : (
-          <p>No alerts yet. Add a trusted contact to get started.</p>
-        )}
-      </section>
-      <HeroScrollDemo />
-    </>
+            <Button variant="ghost" onClick={() => onNavigate('Alert history')}>
+              View all <ArrowUpRight />
+            </Button>
+          </div>
+          {history.length ? (
+            history.slice(0, 3).map((h) => (
+              <div className="activity-entry" key={h._id}>
+                <span className="activity-symbol">
+                  <Activity size={17} />
+                </span>
+                <div>
+                  <strong>{h.summary || 'Emergency alert'}</strong>
+                  <small>
+                    {new Date(h.createdAt).toLocaleDateString('en-IN', {
+                      timeZone: 'Asia/Kolkata',
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}{' '}
+                    · {demo ? 'Demo entry' : h.severity}
+                  </small>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="View alert details"
+                  onClick={() => onNavigate('Alert history')}
+                >
+                  <ArrowUpRight />
+                </Button>
+              </div>
+            ))
+          ) : (
+            <p>No alerts yet. Your recent activity will appear here.</p>
+          )}
+        </SpotlightCard>
+        <SpotlightCard className="readiness">
+          <span className="feature-label">
+            <ShieldCheck size={16} /> SMALL STEPS, MORE CONFIDENCE
+          </span>
+          <h2>Your safety checklist</h2>
+          {[
+            {
+              icon: Users,
+              title: 'Bring your people closer',
+              text: 'Add a trusted contact.',
+              view: 'Trusted contacts',
+            },
+            {
+              icon: MapPin,
+              title: 'Know your surroundings',
+              text: 'Explore community awareness.',
+              view: 'Community',
+            },
+            {
+              icon: Bot,
+              title: 'Check in on follow-ups',
+              text: 'Review your agent’s next steps.',
+              view: 'Safety agent',
+            },
+          ].map(({ icon: Icon, title, text, view }) => (
+            <button
+              className="check-row"
+              key={view}
+              onClick={() => onNavigate(view)}
+            >
+              <span className="check-number">
+                <Icon size={16} />
+              </span>
+              <span>
+                <strong>{title}</strong>
+                <small>{text}</small>
+              </span>
+              <ArrowUpRight size={16} />
+            </button>
+          ))}
+        </SpotlightCard>
+      </div>
+      <HeroScrollDemo onNavigate={onNavigate} />
+    </motion.div>
   );
 }

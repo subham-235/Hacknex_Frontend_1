@@ -38,3 +38,4 @@ next-env.d.ts
 /work/
 !.env.example
 *.tsbuildinfo
+/.npm-cache/

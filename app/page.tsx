@@ -1,5 +1,6 @@
 ﻿'use client';
 import { useState, useEffect } from 'react';
+import { motion, MotionConfig, useReducedMotion } from 'framer-motion';
 import {
   ShieldCheck,
   LayoutDashboard,
@@ -39,7 +40,7 @@ const descriptions: Record<string, [string, string]> = {
   ],
   'Emergency SOS': [
     'Your voice can make a difference.',
-    'Prepare an alert with audio, location, and your trusted contacts.',
+    'Activate voice monitoring and let your backend assess recordings for distress.',
   ],
   'Trusted contacts': [
     'The people who have your back.',
@@ -167,6 +168,7 @@ function SettingsPanel() {
 }
 function Workspace() {
   const app = useApp();
+  const reducedMotion = useReducedMotion();
   const [view, setView] = useState('Overview');
   useEffect(() => {
     const sync = () =>
@@ -201,6 +203,13 @@ function Workspace() {
               aria-current={view === label ? 'page' : undefined}
               key={label}
             >
+              {view === label && (
+                <motion.span
+                  className="nav-active-indicator"
+                  layoutId="active-navigation"
+                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                />
+              )}
               <Icon size={19} />
               {label}
               {label === 'Safety agent' && <span className="mini">AI</span>}
@@ -270,7 +279,12 @@ function Workspace() {
             )}
           </div>
         </header>
-        <main>
+        <motion.main
+          key={`${signedIn ? view : 'auth'}`}
+          initial={{ opacity: 0, y: reducedMotion ? 0 : 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28 }}
+        >
           {!signedIn ? (
             <Auth />
           ) : (
@@ -332,7 +346,7 @@ function Workspace() {
               {view === 'Settings' && <SettingsPanel />}
             </>
           )}
-        </main>
+        </motion.main>
         {app.message && (
           <div className="toast" role="status">
             <ShieldCheck size={19} />
@@ -357,8 +371,10 @@ function Workspace() {
 }
 export default function Home() {
   return (
-    <Providers>
-      <Workspace />
-    </Providers>
+    <MotionConfig reducedMotion="user">
+      <Providers>
+        <Workspace />
+      </Providers>
+    </MotionConfig>
   );
 }
