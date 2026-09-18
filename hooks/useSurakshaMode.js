@@ -29,6 +29,7 @@ export default function useSurakshaMode({ onSOSTriggered, demo = false }) {
   const [isActive, setIsActive] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState('');
   const [liveTranscript, setLiveTranscript] = useState('');
   const [alertData, setAlertData] = useState(null);
   const [locationSource, setLocationSource] = useState('unavailable');
@@ -43,6 +44,7 @@ export default function useSurakshaMode({ onSOSTriggered, demo = false }) {
     const controller = new AbortController();
     request.current = controller;
     setIsLoading(true);
+    setVoiceStatus('Recording captured — sending audio and checking for an SOS…');
     const timer = setTimeout(() => controller.abort(), 90000);
     try {
       const { lat, lon, source } = location.current;
@@ -61,12 +63,26 @@ export default function useSurakshaMode({ onSOSTriggered, demo = false }) {
       if (!active.current || generation.current !== run) return;
       if (typeof data.transcript === 'string') setLiveTranscript(data.transcript);
       if (data.isDistress === true) {
+        setVoiceStatus(data.sent
+          ? data.partialSuccess
+            ? 'SOS triggered — some SMS alerts were submitted; others failed.'
+            : 'SOS triggered — SMS alerts submitted to your contacts.'
+          : 'Distress detected — SMS alerts could not be sent.');
+      } else {
+        setVoiceStatus(response.ok
+          ? 'Recording checked — no SOS triggered. Still listening.'
+          : 'Audio check failed — SOS status is unconfirmed. Please check your connection and try again.');
+      }
+      if (data.isDistress === true) {
         const result = { ...data, locationSource: source };
         setAlertData(result);
         callback.current?.(result);
       }
       if (!response.ok) console.error(`Voice analysis request failed (${response.status})`);
     } catch (err) {
+      if (active.current && generation.current === run) {
+        setVoiceStatus('Audio check interrupted — SOS status is unconfirmed. Please check your connection.');
+      }
       if (active.current && generation.current === run) console.error('Voice analysis request failed:', err.name);
     } finally {
       clearTimeout(timer);
@@ -88,6 +104,7 @@ export default function useSurakshaMode({ onSOSTriggered, demo = false }) {
     setIsActive(false);
     setIsActivating(false);
     setIsLoading(false);
+    setVoiceStatus('');
     setLiveTranscript('');
   }, [stopRecording]);
 
@@ -97,6 +114,7 @@ export default function useSurakshaMode({ onSOSTriggered, demo = false }) {
     const run = ++generation.current;
     setIsActivating(true);
     setAlertData(null);
+    setVoiceStatus('');
     // Demo can preview the microphone, but never uploads audio or looks up location.
     const result = demo ? { lat: null, lon: null, source: 'demo' } : await getLocation();
     if (generation.current !== run) return;
@@ -121,5 +139,5 @@ export default function useSurakshaMode({ onSOSTriggered, demo = false }) {
   }, [demo]);
 
   return { isActive, isActivating, isLoading, liveTranscript, alertData, error,
-    locationSource, activate, deactivate };
+    locationSource, voiceStatus, activate, deactivate };
 }

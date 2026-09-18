@@ -64,6 +64,8 @@ test('overlapping chunks are skipped and stale distress responses cannot reopen 
   const state = h.render({ onSOSTriggered: data => alerts.push(data) });
   await state.activate();
   const first = h.send(new Blob(['audio']));
+  assert.match(h.render({}).voiceStatus, /sending audio/);
+  assert.equal(h.render({}).isLoading, true);
   await h.send(new Blob(['skip']));
   assert.equal(h.requests.length, 1);
   state.deactivate();
@@ -73,6 +75,7 @@ test('overlapping chunks are skipped and stale distress responses cannot reopen 
   assert.equal(alerts.length, 0);
   assert.equal(h.render({}).isActive, false);
   assert.equal(h.render({}).liveTranscript, '');
+  assert.equal(h.render({}).voiceStatus, '');
 });
 
 test('failed SMS distress responses remain visible and recording stays active', async () => {
@@ -84,6 +87,7 @@ test('failed SMS distress responses remain visible and recording stays active', 
   assert.equal(alerts[0].sent, false);
   assert.equal(h.render({}).isActive, true);
   assert.equal(h.render({}).isLoading, false);
+  assert.match(h.render({}).voiceStatus, /could not be sent/);
 });
 
 test('network failure releases the busy lock for the next fresh chunk', async () => {
@@ -91,9 +95,11 @@ test('network failure releases the busy lock for the next fresh chunk', async ()
   const h = modeHarness({ respond: async () => { if (++calls === 1) throw new Error('Offline'); return { ok: true, json: async () => ({ transcript: 'recovered' }) }; } });
   await h.render({}).activate();
   await h.send(new Blob(['one']));
+  assert.match(h.render({}).voiceStatus, /unconfirmed/);
   await h.send(new Blob(['two']));
   assert.equal(calls, 2);
   assert.equal(h.render({}).liveTranscript, 'recovered');
+  assert.match(h.render({}).voiceStatus, /no SOS triggered/);
 });
 
 test('demo never uploads audio and microphone failure never marks mode active', async () => {

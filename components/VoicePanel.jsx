@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Mic, ShieldCheck, Square } from 'lucide-react';
+import { Mic, ShieldCheck, Square, LoaderCircle, Radio } from 'lucide-react';
 import useSurakshaMode from '@/hooks/useSurakshaMode';
 import MicVisualizer from './MicVisualizer';
 import LiveTranscript from './LiveTranscript';
@@ -141,6 +141,29 @@ export default function VoicePanel({
           <Mic size={28} color={mode.isActive ? RED : GRAY} />
         </div>
         <MicVisualizer isActive={mode.isActive} />
+        {!demo && mode.voiceStatus && (
+          <div
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            style={{
+              margin: '20px auto 0', padding: '18px 20px', maxWidth: 500,
+              border: `1px solid ${mode.isLoading ? RED : BORDER}`,
+              borderRadius: 12, background: NAVY, color: WHITE,
+              fontFamily: SANS, fontSize: 16, fontWeight: 600, lineHeight: 1.6,
+            }}
+          >
+            {mode.isLoading
+              ? <LoaderCircle className="animate-spin motion-reduce:animate-none" size={24} aria-hidden="true" style={{ margin: '0 auto 8px', color: RED }} />
+              : <Radio size={24} aria-hidden="true" style={{ margin: '0 auto 8px', color: GREEN }} />}
+            {mode.voiceStatus}
+            {mode.isLoading && (
+              <p style={{ margin: '6px 0 0', fontSize: 13, fontWeight: 400, color: GRAY }}>
+                Keep this page open. We’ll show the result when the check finishes.
+              </p>
+            )}
+          </div>
+        )}
         <p
           role="status"
           style={{ ...label, margin: '18px 0 28px', minHeight: 28 }}
