@@ -28,6 +28,29 @@ export interface Action {
   state: string;
 }
 export interface Session {
+  lastError?: string;
+  aiRetryAfter?: string;
+  expiresAt?: string;
+  distressConfidence?: number;
+  escalationStage?: number;
+  escalationState?: string;
+  nearbyResponderRequests?: { status: string }[];
+  activeResponder?: { userId: string; currentStatus: string } | null;
+  latestVictimLocation?: {
+    latitude: number;
+    longitude: number;
+    observedAt?: string;
+    fresh?: boolean;
+    ageSeconds?: number;
+  };
+  geoRiskSignals?: string[];
+  responderTracking?: {
+    distanceMeters: number;
+    estimatedEtaSeconds: number | null;
+    zone: string;
+    fresh: boolean;
+    lastUpdatedAt: string;
+  } | null;
   _id: string;
   reference: string;
   status: string;
@@ -42,8 +65,13 @@ export interface Session {
     kind: string;
     error?: string;
   }[];
-  recipients: { contactId: string; label: string; number: string }[];
-  events: { _id: string; type: string; text: string; at: string }[];
+  recipients: {
+    contactId: string; label: string; number: string;
+    responseStatus?: 'pending' | 'coming' | 'cannot_help' | 'arrived';
+    respondedAt?: string;
+    tracking?: { distanceMeters: number; fresh: boolean; estimatedEtaSeconds: number | null } | null;
+  }[];
+  events: { _id: string; type: string; text: string; at: string; contactId?: string }[];
   acknowledgments: { contactId: string; at: string }[];
 }
 export const demoContacts: Contact[] = [

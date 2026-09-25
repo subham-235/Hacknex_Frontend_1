@@ -34,13 +34,14 @@ export default function MicVisualizer({ isActive }) {
   }, [isActive]);
   return (
     <div
+      className="mic-visualizer"
       aria-hidden="true"
       style={{
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'flex-end',
         gap: 3,
-        height: 80,
+        height: 52,
       }}
     >
       {Array.from({ length: 36 }, (_, index) => (

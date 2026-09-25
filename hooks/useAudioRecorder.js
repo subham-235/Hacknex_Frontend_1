@@ -67,10 +67,10 @@ export default function useAudioRecorder(onChunkReady) {
             if (generation === state.generation) return callback.current(blob);
           }).catch(() => console.error('Audio chunk callback failed'));
         };
-        recorder.start(4000);
+        recorder.start(2000);
         state.timer = setTimeout(() => {
           if (generation === state.generation && recorder.state === 'recording') recorder.stop();
-        }, 4000);
+        }, 2000);
       };
       recordSegment();
       state.starting = false;

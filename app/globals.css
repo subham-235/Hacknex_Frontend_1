@@ -1113,6 +1113,65 @@ select:focus-visible {
   display: grid;
   place-items: center;
 }
+.report-map-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border-radius: 10px;
+  background: #a995ff18;
+  color: var(--foreground);
+  font-size: 13px;
+}
+.report-map-hint svg, .report-place > svg { flex-shrink: 0; color: #a995ff; }
+.report-place {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  margin: 20px 0 8px;
+  border: 1px dashed #a995ff70;
+  border-radius: 12px;
+}
+.report-place.is-selected { border-style: solid; background: #a995ff12; }
+.report-place strong { font-size: 14px; }
+.report-place p { margin: 6px 0; font-size: 12px; }
+.report-place small { font-variant-numeric: tabular-nums; opacity: 0.75; }
+.report-place button { margin-left: auto; }
+.report-coordinates { margin: 20px 0; }
+.sim-journey-check {
+  margin: 20px 24px 0;
+  padding: 20px;
+  border: 1px solid #a995ff60;
+  border-radius: 14px;
+  background: #a995ff12;
+}
+.sim-journey-check > strong { font-size: 20px; color: #c9bcff; }
+.sim-journey-check p { font-size: 13px; line-height: 1.6; margin: 10px 0; }
+.sim-check-clock { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; margin: 14px 0; }
+.sim-check-clock small { display: block; font-size: 12px; font-weight: 400; color: #aab8d0; }
+.report-coordinates summary { cursor: pointer; font-size: 12px; padding: 8px 0; }
+.report-map-pin span {
+  display: block;
+  width: 32px;
+  height: 32px;
+  background: #7955de;
+  border: 3px solid white;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: -3px 3px 10px #0005;
+}
+.report-map-pin span::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  top: 9px;
+  left: 9px;
+  border-radius: 50%;
+  background: white;
+}
 .map-legend {
   display: flex;
   align-items: center;

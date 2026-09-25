@@ -1,27 +1,32 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Mic, ShieldCheck, Square, LoaderCircle, Radio } from 'lucide-react';
 import useSurakshaMode from '@/hooks/useSurakshaMode';
 import MicVisualizer from './MicVisualizer';
 import LiveTranscript from './LiveTranscript';
 import AlertModal from './AlertModal';
+import { useApp } from './app-provider';
+import { sosProgress } from '@/lib/sos-progress.mjs';
 
-const RED = '#d68da8',
-  NAVY = '#1a2138',
-  DARK = 'radial-gradient(ellipse at 50% 30%, #382742 0%, #11182a 65%)',
+const RED = '#e5ad99',
+  NAVY = '#243027',
+  DARK = 'radial-gradient(ellipse at 50% 30%, #34432c 0%, #17221b 65%)',
   BORDER = '#ffffff1c';
-const WHITE = '#eff2ff',
-  GRAY = '#adb8cf',
-  GREEN = '#85e9c7';
+const WHITE = '#f2f1e8',
+  GRAY = '#afbcaa',
+  GREEN = '#d0ef86';
 const MONO = "'Segoe UI', Arial, sans-serif";
 const SANS = "'Segoe UI', Arial, sans-serif";
 
 export default function VoicePanel({
   demo = false,
+  visible = true,
   contactCount = 0,
   onSOSTriggered = () => {},
 }) {
   const [modalData, setModalData] = useState(null);
+  const { sessions } = useApp();
+  const emergencyActive = !demo && sessions.some(session => sosProgress(session).active);
   const mode = useSurakshaMode({
     demo,
     onSOSTriggered: (data) => {
@@ -29,6 +34,13 @@ export default function VoicePanel({
       onSOSTriggered(data);
     },
   });
+  const { deactivate, isActive, isActivating } = mode;
+  useEffect(() => {
+    if (!visible) deactivate({ preserveOutput: true });
+  }, [visible, deactivate]);
+  useEffect(() => {
+    if (emergencyActive && (isActive || isActivating)) deactivate({ preserveOutput: true });
+  }, [emergencyActive, isActive, isActivating, deactivate]);
   const label = {
     fontFamily: MONO,
     fontSize: 10,
@@ -47,6 +59,7 @@ export default function VoicePanel({
     });
   return (
     <section
+      className="voice-guard"
       aria-labelledby="voice-mode-title"
       style={{
         background: DARK,
@@ -57,12 +70,13 @@ export default function VoicePanel({
       }}
     >
       <div
+        className="voice-guard-bar"
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: 12,
-          padding: '18px 24px',
+          padding: '13px 22px',
           borderBottom: `1px solid ${BORDER}`,
         }}
       >
@@ -90,11 +104,12 @@ export default function VoicePanel({
         </span>
       </div>
       <div
+        className="voice-guard-body"
         style={{
           maxWidth: 720,
           margin: '0 auto',
           textAlign: 'center',
-          padding: 'clamp(24px, 5vw, 64px) 20px',
+          padding: 'clamp(18px, 2.8dvh, 30px) 20px',
         }}
       >
         <p style={{ ...label, color: RED }}>YOUR VOICE IS YOUR SIGNAL</p>
@@ -102,11 +117,11 @@ export default function VoicePanel({
           id="voice-mode-title"
           style={{
             fontFamily: SANS,
-            fontSize: 'clamp(30px, 5vw, 52px)',
-            lineHeight: 1.1,
+            fontSize: 'clamp(30px, 4vw, 46px)',
+            lineHeight: 1.06,
             letterSpacing: -1,
             color: WHITE,
-            margin: '20px 0',
+            margin: '12px 0 14px',
           }}
         >
           Help starts
@@ -117,7 +132,7 @@ export default function VoicePanel({
           style={{
             color: GRAY,
             fontSize: 14,
-            lineHeight: 1.8,
+            lineHeight: 1.65,
             maxWidth: 490,
             margin: '0 auto',
           }}
@@ -128,17 +143,17 @@ export default function VoicePanel({
         </p>
         <div
           style={{
-            width: 72,
-            height: 72,
+            width: 62,
+            height: 62,
             borderRadius: '50%',
             display: 'grid',
             placeItems: 'center',
-            margin: '32px auto 0',
+            margin: '18px auto 0',
             border: `1px solid ${mode.isActive ? RED : BORDER}`,
             background: NAVY,
           }}
         >
-          <Mic size={28} color={mode.isActive ? RED : GRAY} />
+          <Mic size={24} color={mode.isActive ? RED : GRAY} />
         </div>
         <MicVisualizer isActive={mode.isActive} />
         {!demo && mode.voiceStatus && (
@@ -166,7 +181,7 @@ export default function VoicePanel({
         )}
         <p
           role="status"
-          style={{ ...label, margin: '18px 0 28px', minHeight: 28 }}
+          style={{ ...label, margin: '7px 0 16px', minHeight: 18 }}
         >
           {mode.isActivating
             ? 'GETTING LOCATION & MICROPHONE PERMISSION…'
@@ -175,10 +190,11 @@ export default function VoicePanel({
                 ? 'LOCAL MIC PREVIEW · NO AUDIO UPLOADED'
                 : mode.isLoading
                   ? 'ANALYZING YOUR RECORDING…'
-                  : 'MONITORING · FOUR-SECOND RECORDINGS'
+                  : 'MONITORING · TWO-SECOND RECORDINGS'
               : 'MICROPHONE OFF · READY WHEN YOU ARE'}
         </p>
         <button
+          disabled={emergencyActive}
           onClick={() =>
             mode.isActive || mode.isActivating
               ? mode.deactivate()
@@ -187,12 +203,12 @@ export default function VoicePanel({
           style={{
             width: '100%',
             maxWidth: 400,
-            minHeight: 52,
+            minHeight: 48,
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 10,
-            padding: '14px 20px',
+            padding: '12px 20px',
             border: `1px solid ${RED}`,
             borderRadius: 6,
             background:
@@ -207,7 +223,7 @@ export default function VoicePanel({
           ) : (
             <Mic size={17} />
           )}
-          {mode.isActivating
+          {emergencyActive ? 'SOS active — microphone off' : mode.isActivating
             ? 'Cancel activation'
             : mode.isActive
               ? 'Deactivate Suraksha Mode'
@@ -232,22 +248,22 @@ export default function VoicePanel({
           style={{
             color: GRAY,
             fontSize: 12,
-            lineHeight: 1.7,
-            margin: '18px auto',
+            lineHeight: 1.55,
+            margin: '13px auto 10px',
             maxWidth: 500,
           }}
         >
           {demo
             ? 'Demo mode keeps recordings on this page. Sign in for live analysis and automatic alerts.'
-            : 'Activating uploads microphone audio automatically and authorizes SMS alerts when the backend detects distress. Monitoring stops when you leave this screen. Keep this page open and your device awake.'}
+            : 'Activating uploads microphone audio and authorizes SMS alerts when distress is detected. Deactivating stops audio recording; an existing SOS stays active and help updates continue in this app until you mark yourself safe. Keep the app open and your device awake.'}
         </p>
         {!demo && (
-          <p style={{ color: GRAY, fontSize: 11, lineHeight: 1.6 }}>
+          <p style={{ color: GRAY, fontSize: 11, lineHeight: 1.5, margin: 0 }}>
             Uses your device location, with approximate IP location as a
             fallback.
           </p>
         )}
-        <div style={{ marginTop: 24 }}>
+        <div style={{ marginTop: 12 }}>
           <LiveTranscript
             transcript={mode.liveTranscript}
             isActive={mode.isActive}
@@ -259,8 +275,8 @@ export default function VoicePanel({
             flexWrap: 'wrap',
             justifyContent: 'center',
             gap: 24,
-            marginTop: 28,
-            paddingTop: 24,
+            marginTop: 15,
+            paddingTop: 14,
             borderTop: `1px solid ${BORDER}`,
           }}
         >
@@ -300,7 +316,7 @@ export default function VoicePanel({
             Preview SOS animation
           </button>
         )}
-        <p style={{ marginTop: 28, font: `11px ${MONO}`, color: GRAY }}>
+        <p style={{ margin: '14px 0 0', font: `11px ${MONO}`, color: GRAY }}>
           Need immediate help?{' '}
           <a href="tel:112" style={{ color: WHITE }}>
             Call 112
@@ -309,7 +325,7 @@ export default function VoicePanel({
         </p>
       </div>
       <AlertModal
-        show={!!modalData}
+        show={visible && !!modalData}
         alertData={modalData}
         onClose={() => setModalData(null)}
       />

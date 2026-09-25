@@ -29,7 +29,7 @@ export function SafetyOrbit() {
         const geometry = new THREE.IcosahedronGeometry(1.12, 2);
         const edges = new THREE.EdgesGeometry(geometry);
         const material = new THREE.LineBasicMaterial({
-          color: '#b5a4ff',
+          color: '#d0ef86',
           transparent: true,
           opacity: 0.36,
         });
@@ -39,7 +39,7 @@ export function SafetyOrbit() {
           const ring = new THREE.Mesh(
             new THREE.TorusGeometry(1.55 + i * 0.15, 0.009, 8, 100),
             new THREE.MeshBasicMaterial({
-              color: i === 1 ? '#81ebcc' : '#b4a3ff',
+              color: i === 1 ? '#b7c7ad' : '#d0ef86',
               transparent: true,
               opacity: 0.55,
             }),
@@ -64,7 +64,7 @@ export function SafetyOrbit() {
           new THREE.BufferAttribute(dots, 3),
         );
         const particleMaterial = new THREE.PointsMaterial({
-          color: '#a4f4df',
+          color: '#e0efbc',
           size: 0.028,
           transparent: true,
           opacity: 0.7,

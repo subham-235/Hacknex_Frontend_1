@@ -24,6 +24,11 @@ import Contacts from '@/components/contacts-panel';
 import SosPanel from '@/components/sos-panel';
 import CommunityPanel from '@/components/community-panel';
 import { AgentPanel, HistoryPanel } from '@/components/activity-panels';
+import { ResponderPanel } from '@/components/rescue-panel';
+import JourneyPanel from '@/components/journey-panel';
+import LocationSimulator from '@/components/location-simulator';
+import { WorkspacePage } from '@/components/workspace-pages';
+import Landing from '@/components/landing';
 const nav = [
   ['Overview', LayoutDashboard, 'overview'],
   ['Emergency SOS', Siren, 'sos'],
@@ -31,9 +36,21 @@ const nav = [
   ['Community', MapPin, 'community'],
   ['Alert history', History, 'history'],
   ['Safety agent', Bot, 'agent'],
+  ['Respond to SOS', Users, 'responders'],
+  ['Safety journey', MapPin, 'journey'],
+  ['GPS simulator', MapPin, 'simulator'],
   ['Settings', Settings, 'settings'],
 ] as const;
 const descriptions: Record<string, [string, string]> = {
+  'GPS simulator': ['The rescue, in motion', 'An interactive demonstration of how Suraksha brings help closer.'],
+  'Respond to SOS': [
+    'Be there when it matters.',
+    'Make yourself available. Find a nearby request. Help safely.',
+  ],
+  'Safety journey': [
+    'Stay connected on your journey.',
+    'Monitor destination arrival and check in when plans change.',
+  ],
   Overview: [
     'Your safety starts here.',
     'Stay connected to the people who have your back.',
@@ -170,6 +187,13 @@ function Workspace() {
   const app = useApp();
   const reducedMotion = useReducedMotion();
   const [view, setView] = useState('Overview');
+  const [landing, setLanding] = useState(true);
+  useEffect(() => {
+    const syncLanding = () => setLanding(!location.hash || location.hash === '#home');
+    syncLanding();
+    window.addEventListener('hashchange', syncLanding);
+    return () => window.removeEventListener('hashchange', syncLanding);
+  }, []);
   useEffect(() => {
     const sync = () =>
       setView(
@@ -185,10 +209,11 @@ function Workspace() {
   }
   const signedIn = app.demo || !!app.user;
   const [title, description] = descriptions[view];
+  if (landing && !app.user) return <Landing onEnter={() => { location.hash = 'overview'; setLanding(false); }} onSignIn={() => { app.setDemo(false); location.hash = 'overview'; setLanding(false); }} />;
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <a className="brand" href="#overview">
+        <a className="brand" href="#home">
           <ShieldCheck />
           <span>
             suraksha<span className="brand-dot">.</span>
@@ -280,7 +305,7 @@ function Workspace() {
           </div>
         </header>
         <motion.main
-          key={`${signedIn ? view : 'auth'}`}
+          key={app.demo ? 'demo-workspace' : app.user?._id || 'auth'}
           initial={{ opacity: 0, y: reducedMotion ? 0 : 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.28 }}
@@ -289,7 +314,7 @@ function Workspace() {
             <Auth />
           ) : (
             <>
-              <div className="page-title">
+              {view !== 'GPS simulator' && <div className="page-title">
                 <div>
                   <p className="eyebrow">A LITTLE MORE CONFIDENCE, EVERY DAY</p>
                   <h1>{title}</h1>
@@ -312,6 +337,7 @@ function Workspace() {
                   </Button>
                 )}
               </div>
+              }
               {app.demo && (
                 <div className="notice">
                   <Radio size={16} />
@@ -337,13 +363,16 @@ function Workspace() {
                   Loading your workspace...
                 </div>
               )}
-              {view === 'Overview' && <Overview onNavigate={navigate} />}{' '}
-              {view === 'Trusted contacts' && <Contacts />}
-              {view === 'Emergency SOS' && <SosPanel />}
-              {view === 'Community' && <CommunityPanel />}
-              {view === 'Alert history' && <HistoryPanel />}
-              {view === 'Safety agent' && <AgentPanel />}
-              {view === 'Settings' && <SettingsPanel />}
+              <WorkspacePage active={view === 'Overview'}><Overview onNavigate={navigate} /></WorkspacePage>
+              <WorkspacePage active={view === 'Trusted contacts'}><Contacts /></WorkspacePage>
+              <WorkspacePage active={view === 'Emergency SOS'}><SosPanel /></WorkspacePage>
+              <WorkspacePage active={view === 'Community'}><CommunityPanel /></WorkspacePage>
+              <WorkspacePage active={view === 'Alert history'}><HistoryPanel /></WorkspacePage>
+              <WorkspacePage active={view === 'Safety agent'}><AgentPanel /></WorkspacePage>
+              <WorkspacePage active={view === 'Settings'}><SettingsPanel /></WorkspacePage>
+              <WorkspacePage active={view === 'Respond to SOS'}><ResponderPanel /></WorkspacePage>
+              <WorkspacePage active={view === 'Safety journey'}><JourneyPanel /></WorkspacePage>
+              <WorkspacePage active={view === 'GPS simulator'}><LocationSimulator /></WorkspacePage>
             </>
           )}
         </motion.main>

@@ -4,6 +4,8 @@ This is a separate React application in `Suraksha/frontend`, alongside `Suraksha
 
 ## Run it
 
+For **Geofencing Demo Mode**, sign in and open **GPS simulator** with backend `ENABLE_DEMO_MODE=true`. This is separate from the in-memory Explore demo. See the [complete simulator guide](../backend/docs/geofencing-demo.md).
+
 Open a terminal in `frontend`:
 
 ```powershell
@@ -48,7 +50,7 @@ Submission, delivery and acknowledgment are different states. A delivered SMS do
 
 ## Configuration and deployment
 
-During `npm run dev`, Vite proxies `/api/*` to `http://127.0.0.1:5000/*` and `/socket.io` to the same backend. This keeps cookies on one browser origin. To change the local target in PowerShell:
+During `npm run dev`, Vite proxies `/api/*` to `http://127.0.0.1:5000/*`. Socket.IO connects directly to port 5000 on the browser's current hostname, avoiding proxy resets during frontend rebuilds. Cookies remain available because browser cookies are scoped by host, not port. To change the API target in PowerShell:
 
 ```powershell
 $env:BACKEND_URL = 'http://127.0.0.1:5000'
@@ -81,4 +83,14 @@ The standalone JavaScript hooks are `hooks/useAudioRecorder.js` and `hooks/useSu
 
 Each four-second segment is finalized before upload so it contains a complete WebM container. The 500-byte filter removes tiny payloads, not acoustic silence. Busy requests cause new segments to be skipped rather than queued. Requests include cookies and `audio`, `lat`, `lon`, plus the legacy backend `location` field; missing location is explicitly marked unavailable. Zero coordinates are preserved. Upload errors are console-only and the next new segment can try again. Stopping cancels local requests but cannot recall an SMS already submitted by the backend. The backend's existing policy controls repeated distress alerts; this screen does not add a cooldown.
 
-The animated bars indicate recording mode, not measured loudness. Transcripts come only from backend responses. The modal distinguishes GPS from approximate IP location, missing location, failed SMS submissions, and successful submissions (which do not prove delivery). Dismiss keeps monitoring active. Keep the page open and device awake; browsers may suspend recording in the background. Tests use mocked microphones and HTTP responses and never send a live SOS.
+The animated bars indicate recording mode, not measured loudness. Transcripts come only from backend responses. The modal distinguishes GPS from approximate IP location, missing location, failed SMS submissions, and successful submissions (which do not prove delivery). Dismissing the result does not restart microphone recording; active SOS monitoring continues independently. Keep the page open and device awake; browsers may suspend recording in the background. Tests use mocked microphones and HTTP responses and never send a live SOS.
+
+## Rescue coordination and monitored journeys
+
+After distress detection, the microphone stops immediately and buffered audio is discarded, including when SMS submission fails. An active SOS also prevents restarting the microphone. Victim GPS updates run independently in the app provider every 15 seconds while signed in with an active session, across workspace navigation, until resolution/expiry or sign-out. Precise-location failures appear above the rescue status; keep the app open and the device awake.
+
+New SMS alerts include private response links when the backend has a reachable `PUBLIC_BASE_URL`. The backend hosts the mobile contact page directly. Contacts can accept, decline, confirm arrival, and optionally share GPS without creating an account. The victim and Safety agent screens show contact status and fresh distances alongside nearby responders; changes produce sounded notifications. A decline never promises incoming help, and GPS proximity never confirms arrival. See `../backend/docs/sms-reply-troubleshooting.md` for setup and link access details.
+
+All shared in-app notifications play a two-tone chime after browser audio is unlocked by a click/tap or key press. Responder status updates include fresh distance and announce changes across 1 km, 500 m, 250 m, 100 m and 50 m bands. Stale locations never announce a current distance. Trusted-contact acknowledgments also sound, but SMS replies do not provide live GPS or prove that the contact is travelling. Browser/device mute settings and background suspension still apply; these are in-app alerts, not closed-app push notifications.
+
+The Respond to SOS view shows authenticated persistent requests and provides accept/decline, assignment details, estimated distance/ETA, explicit arrival/completion, and cancellation. Safety journey starts optional destination/time/route monitoring. Safety agent includes owner rescue progress and resolution. These features use the existing backend `/agent` APIs; see `../backend/docs/responder-geofencing.md`. Demo mode does not submit these operations. Responder and journey location sharing is explicit and tied to its screen. Victim location sharing for active SOS sessions runs automatically across screens every 15 seconds. API polling every ten seconds recovers missed socket events. Start the upgraded backend and its worker before testing these views.

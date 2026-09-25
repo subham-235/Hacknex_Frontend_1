@@ -6,10 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field, Status } from './shared';
 import { api, useApp } from './app-provider';
-import { validateCoordinates } from '@/lib/api.mjs';
+import { validateCoordinates, safeMapUrl } from '@/lib/api.mjs';
+import { usePageVisible } from './workspace-pages';
 const Map = lazy(() => import('./community-map'));
 export default function CommunityPanel() {
-  const { demo, socket, notify } = useApp();
+  const visible = usePageVisible();
+  const { demo, socket, notify, live, socketError, nearbyAlerts } = useApp();
   const [sharing, setSharing] = useState(false),
     [busy, setBusy] = useState(false),
     [mounted, setMounted] = useState(false),
@@ -18,6 +20,15 @@ export default function CommunityPanel() {
     [lon, setLon] = useState('');
   const interval = useRef<ReturnType<typeof setInterval> | null>(null);
   const active = useRef(false);
+  const [locating, setLocating] = useState(false);
+  const selected: [number, number] | null = validateCoordinates(lat, lon)
+    ? [Number(lat), Number(lon)]
+    : null;
+  function selectPlace(point: [number, number]) {
+    setLat(String(point[0]));
+    setLon(String(point[1]));
+    setError('');
+  }
   const alive = useRef(true);
   const heatmap = useQuery({
     queryKey: ['heatmap', demo],
@@ -34,14 +45,19 @@ export default function CommunityPanel() {
     : heatmap.data?.heatmapPoints || [];
   useEffect(() => {
     setMounted(true);
-    alive.current = true;
+    alive.current = visible;
+    if (!visible) {
+      setSharing(false);
+      setBusy(false);
+    }
     return () => {
       alive.current = false;
       if (interval.current) clearInterval(interval.current);
       if (active.current && !demo)
         void api('/location/deactivate', { method: 'POST' }).catch(() => {});
+      active.current = false;
     };
-  }, [demo]);
+  }, [demo, visible]);
   function position() {
     return new Promise<GeolocationPosition>((resolve, reject) => {
       if (!navigator.geolocation) {
@@ -122,12 +138,66 @@ export default function CommunityPanel() {
   }
   return (
     <>
+      {!demo && (
+        <section className="card" aria-labelledby="nearby-alerts-title">
+          <h2 id="nearby-alerts-title">Nearby SOS alerts</h2>
+          {nearbyAlerts.length === 0 ? (
+            <p>
+              No nearby SOS alerts received yet. Enable location sharing and
+              keep this screen open.
+            </p>
+          ) : (
+            nearbyAlerts.map((alert) => {
+              const mapUrl = safeMapUrl(alert.mapsLink);
+              return (
+                <article
+                  key={alert.id}
+                  style={{
+                    borderLeft: '4px solid #d68da8',
+                    padding: '12px 16px',
+                    marginTop: 12,
+                  }}
+                >
+                  <h3>{alert.message}</h3>
+                  <p>
+                    {alert.distance} · {alert.severity || 'SOS'}
+                  </p>
+                  <p>
+                    Reported{' '}
+                    <time dateTime={new Date(alert.timestamp).toISOString()}>
+                      {new Date(alert.timestamp).toLocaleString()}
+                    </time>
+                    . Current incident status is unknown.
+                  </p>
+                  {mapUrl && (
+                    <a href={mapUrl} target="_blank" rel="noopener noreferrer">
+                      Open location in Google Maps
+                    </a>
+                  )}
+                </article>
+              );
+            })
+          )}
+        </section>
+      )}
+      {!demo && !live && (
+        <div className="card" role="alert">
+          <h2>Nearby notifications are offline</h2>
+          <p>{socketError || 'Connecting to nearby alerts…'}</p>
+          <p>
+            Location sharing alone does not connect notifications. Wait for
+            “Live updates” before testing an SOS.
+          </p>
+          <Button onClick={() => socket.current?.connect()}>
+            Reconnect notifications
+          </Button>
+        </div>
+      )}
       <div className="card location-card">
         <div className="agent-icon">
           <Navigation />
         </div>
         <div>
-          <h2>Be part of a more connected community.</h2>
           <p>
             {demo
               ? 'Try sharing controls without accessing or sending your location.'
@@ -167,13 +237,21 @@ export default function CommunityPanel() {
             </div>
             <MapPin size={20} />
           </div>
-          {heatmap.isError ? (
-            <p className="error">{heatmap.error.message}</p>
-          ) : mounted ? (
+          <div className="report-map-hint">
+            <MapPin size={18} />
+            <span>Tap the map to mark a place. Drag the pin to adjust.</span>
+          </div>
+          {heatmap.isError && <p className="error">{heatmap.error.message}</p>}
+          {mounted ? (
             <Suspense
               fallback={<div className="map-placeholder">Loading map...</div>}
             >
-              <Map points={points} />
+              <Map
+                points={points}
+                selected={selected}
+                onSelect={selectPlace}
+                disabled={busy || locating}
+              />
             </Suspense>
           ) : (
             <div className="map-placeholder">Loading map...</div>
@@ -193,7 +271,9 @@ export default function CommunityPanel() {
             setBusy(true);
             setError('');
             if (!validateCoordinates(lat, lon)) {
-              setError('Enter valid latitude and longitude.');
+              setError(
+                'Choose a place on the map before submitting your report.',
+              );
               setBusy(false);
               return;
             }
@@ -226,11 +306,71 @@ export default function CommunityPanel() {
           }}
         >
           <p className="eyebrow">LOOK OUT FOR EACH OTHER</p>
-          <h2>Report an incident</h2>
+          <h2>Mark an unsafe place</h2>
           <p className="fine">
             An incident report adds a map point. It does not send an emergency
             SOS.
           </p>
+          <div
+            className={`report-place${selected ? ' is-selected' : ''}`}
+            role="status"
+          >
+            <MapPin size={22} />
+            <div>
+              <strong>
+                {selected
+                  ? 'Report location selected'
+                  : 'Choose a place on the map'}
+              </strong>
+              <p>
+                {selected
+                  ? 'Your purple pin marks the place you are reporting.'
+                  : 'Zoom in and tap the street or place you want to report.'}
+              </p>
+              {selected && (
+                <small>
+                  {selected[0].toFixed(5)}, {selected[1].toFixed(5)}
+                </small>
+              )}
+            </div>
+            {selected && (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={busy || locating}
+                onClick={() => {
+                  setLat('');
+                  setLon('');
+                }}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={busy || locating}
+            onClick={async () => {
+              setLocating(true);
+              setError('');
+              try {
+                const p = await position();
+                if (alive.current)
+                  selectPlace([p.coords.latitude, p.coords.longitude]);
+              } catch {
+                if (alive.current)
+                  setError(
+                    'Could not find your location. Allow location access or select a place on the map.',
+                  );
+              } finally {
+                setLocating(false);
+              }
+            }}
+          >
+            <LocateFixed />{' '}
+            {locating ? 'Finding your location...' : 'Use my current location'}
+          </Button>
           <Field label="Incident type">
             <select name="incidentType">
               <option value="unsafe_area">Unsafe area</option>
@@ -247,44 +387,30 @@ export default function CommunityPanel() {
               <option value="5">5 - Severe</option>
             </select>
           </Field>
-          <Field label="Latitude">
-            <Input
-              required
-              type="number"
-              step="any"
-              min={-90}
-              max={90}
-              value={lat}
-              onChange={(e) => setLat(e.target.value)}
-            />
-          </Field>
-          <Field label="Longitude">
-            <Input
-              required
-              type="number"
-              step="any"
-              min={-180}
-              max={180}
-              value={lon}
-              onChange={(e) => setLon(e.target.value)}
-            />
-          </Field>
-          <Button
-            variant="ghost"
-            disabled={busy}
-            onClick={async () => {
-              try {
-                const p = await position();
-                setLat(String(p.coords.latitude));
-                setLon(String(p.coords.longitude));
-              } catch (e) {
-                setError((e as Error).message);
-              }
-            }}
-          >
-            <LocateFixed /> Use current coordinates
-          </Button>
-          <Button type="submit" disabled={busy}>
+          <details className="report-coordinates">
+            <summary>Enter coordinates manually (optional)</summary>
+            <Field label="Latitude">
+              <Input
+                type="number"
+                step="any"
+                min={-90}
+                max={90}
+                value={lat}
+                onChange={(e) => setLat(e.target.value)}
+              />
+            </Field>
+            <Field label="Longitude">
+              <Input
+                type="number"
+                step="any"
+                min={-180}
+                max={180}
+                value={lon}
+                onChange={(e) => setLon(e.target.value)}
+              />
+            </Field>
+          </details>
+          <Button type="submit" disabled={busy || locating || !selected}>
             {busy
               ? 'Working...'
               : demo

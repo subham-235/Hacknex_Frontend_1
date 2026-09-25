@@ -1,5 +1,6 @@
 ﻿'use client';
 import { useState, type ReactNode } from 'react';
+import { ArrowUpRight, ShieldCheck, Users, Fingerprint } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -10,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { api, useApp } from './app-provider';
 import { SafetyOrbit } from './safety-orbit';
+import { usePageVisible } from './workspace-pages';
 export function Field({
   label,
   children,
@@ -55,6 +57,7 @@ export function Confirm({
   const [open, setOpen] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
+  const visible = usePageVisible();
   return (
     <>
       <Button
@@ -67,7 +70,7 @@ export function Confirm({
         {children}
       </Button>
       <Dialog
-        open={open}
+        open={open && visible}
         onOpenChange={(value) => {
           if (!busy) setOpen(value);
         }}
@@ -116,20 +119,20 @@ export function Auth() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   return (
-    <section className="auth-grid">
+    <section className="auth-grid auth-editorial">
       <div className="auth-story">
-        <span className="eyebrow">YOUR PEOPLE. ONE CONNECTION.</span>
+        <div className="auth-story-top"><ShieldCheck size={25} /><span>YOUR EVERYDAY SAFETY COMPANION</span><span>01 /</span></div>
         <h2>
-          A safer day
+          Go a little
           <br />
-          starts together.
+          further.<br /><em>Stay a little<br />closer.</em>
         </h2>
         <p>
-          Bring your trusted contacts, emergency alerts, and thoughtful
-          follow-up into one place.
+          Your people, your journeys, your peace of mind.
+          One space to keep it all connected.
         </p>
         <SafetyOrbit />
-        <small>Your people. Your voice. Your safety space.</small>
+        <div className="auth-story-bottom"><Users size={19} /><span>Built around the people<br /><strong>who have your back.</strong></span><span className="auth-story-arrow">↗</span></div>
       </div>
       <form
         className="card auth-form"
@@ -151,12 +154,13 @@ export function Auth() {
           }
         }}
       >
-        <p className="eyebrow">WELCOME TO SURAKSHA</p>
-        <h2>{register ? 'Create your safety space' : 'Welcome back.'}</h2>
+        <div className="auth-form-mark"><Fingerprint size={27} /><span>YOUR PERSONAL SPACE</span></div>
+        <p className="eyebrow">{register ? 'A GOOD PLACE TO BEGIN' : 'GOOD TO HAVE YOU HERE'}</p>
+        <h2>{register ? 'Your circle starts here.' : 'Make yourself at home.'}</h2>
         <p>
           {register
             ? 'Start with your account details.'
-            : 'Sign in to access your personal workspace.'}
+            : 'Sign in and pick up right where you left off.'}
         </p>
         {register && (
           <Field label="Full name">
@@ -170,12 +174,13 @@ export function Auth() {
           </Field>
         )}
         <Field label="Email address">
-          <Input name="emailId" type="email" required autoComplete="email" />
+          <Input name="emailId" type="email" placeholder="you@example.com" required autoComplete="email" />
         </Field>
         <Field label="Password">
           <Input
             name="password"
             type="password"
+            placeholder={register ? 'Create a strong password' : 'Enter your password'}
             required
             minLength={register ? 8 : 1}
             autoComplete={register ? 'new-password' : 'current-password'}
@@ -194,8 +199,10 @@ export function Auth() {
         )}
         <Button type="submit" disabled={busy}>
           {busy ? 'Connecting...' : register ? 'Create account' : 'Sign in'}
+          <ArrowUpRight size={18} />
         </Button>
         <Button
+          type="button"
           variant="ghost"
           onClick={() => {
             setRegister(!register);
@@ -206,9 +213,9 @@ export function Auth() {
             ? 'Already have an account? Sign in'
             : 'New here? Create an account'}
         </Button>
-        <div className="divider" />
-        <Button variant="outline" onClick={() => setDemo(true)}>
-          Explore the demo
+        <div className="auth-alternative"><span />OR TAKE A LOOK AROUND<span /></div>
+        <Button type="button" variant="outline" onClick={() => setDemo(true)}>
+          Explore the demo <ArrowUpRight size={16} />
         </Button>
         <p className="fine">
           Take a look around with sample data. No alerts are sent.

@@ -36,10 +36,20 @@ export default function useSurakshaMode({ onSOSTriggered, demo = false }) {
   const active = useRef(false), starting = useRef(false), generation = useRef(0);
   const location = useRef({ lat: null, lon: null, source: 'unavailable' });
   const request = useRef(null), callback = useRef(onSOSTriggered);
+  const pending = useRef([]);
   callback.current = onSOSTriggered;
 
-  const sendAudioChunk = useCallback(async blob => {
-    if (!active.current || request.current || demo) return;
+  const sendAudioChunk = useCallback(async function sendAudioChunk(blob) {
+    if (!active.current || demo) return;
+    if (blob) {
+      pending.current.push({ blob, capturedAt: Date.now() });
+      // Keep up to ten seconds of recent audio, not an ever-growing backlog.
+      pending.current = pending.current.slice(-5);
+    }
+    if (request.current) return;
+    const batch = pending.current.filter(clip => Date.now() - clip.capturedAt <= 10000);
+    pending.current = [];
+    if (!batch.length) return;
     const run = generation.current;
     const controller = new AbortController();
     request.current = controller;
@@ -49,7 +59,7 @@ export default function useSurakshaMode({ onSOSTriggered, demo = false }) {
     try {
       const { lat, lon, source } = location.current;
       const form = new FormData();
-      form.append('audio', blob, 'recording.webm');
+      batch.forEach((clip, index) => form.append('audio', clip.blob, index === 0 ? 'recording.webm' : `recording-${index}.webm`));
       form.append('lat', lat == null ? '' : String(lat));
       form.append('lon', lon == null ? '' : String(lon));
       // Compatibility with the current backend's required location field.
@@ -74,6 +84,11 @@ export default function useSurakshaMode({ onSOSTriggered, demo = false }) {
           : 'Audio check failed — SOS status is unconfirmed. Please check your connection and try again.');
       }
       if (data.isDistress === true) {
+        // End capture immediately; rescue/location monitoring has its own lifetime.
+        active.current = false;
+        pending.current = [];
+        stopCapture.current();
+        setIsActive(false);
         const result = { ...data, locationSource: source };
         setAlertData(result);
         callback.current?.(result);
@@ -89,23 +104,34 @@ export default function useSurakshaMode({ onSOSTriggered, demo = false }) {
       if (request.current === controller) {
         request.current = null;
         setIsLoading(false);
+        if (active.current && generation.current === run && pending.current.length) {
+          // Analyze buffered clips together, in order, in the next single request.
+          void sendAudioChunk();
+        }
       }
     }
   }, [demo]);
   const { startRecording, stopRecording, isRecording, error } = useAudioRecorder(sendAudioChunk);
+  const stopCapture = useRef(stopRecording);
+  stopCapture.current = stopRecording;
 
-  const deactivate = useCallback(() => {
+  const deactivate = useCallback(({ preserveOutput = false } = {}) => {
     generation.current++;
     active.current = false;
     starting.current = false;
     request.current?.abort();
     request.current = null;
+    pending.current = [];
     stopRecording();
     setIsActive(false);
     setIsActivating(false);
     setIsLoading(false);
-    setVoiceStatus('');
-    setLiveTranscript('');
+    if (!preserveOutput) {
+      setVoiceStatus('');
+      setLiveTranscript('');
+    } else {
+      setVoiceStatus('Microphone off. Any active SOS continues to receive help updates.');
+    }
   }, [stopRecording]);
 
   const activate = useCallback(async () => {
@@ -136,6 +162,7 @@ export default function useSurakshaMode({ onSOSTriggered, demo = false }) {
     active.current = false;
     request.current?.abort();
     request.current = null;
+    pending.current = [];
   }, [demo]);
 
   return { isActive, isActivating, isLoading, liveTranscript, alertData, error,

@@ -27,6 +27,42 @@ function harness(file, globals = {}) {
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
+test('distress stops microphone capture and discards buffered uploads immediately', async () => {
+  const response = deferred();
+  const alerts = [];
+  const h = modeHarness({ respond: () => response.promise });
+  await h.render({ onSOSTriggered: data => alerts.push(data) }).activate();
+  const first = h.send(new Blob(['help']));
+  await h.send(new Blob(['buffered']));
+  response.resolve({ ok: true, json: async () => ({ isDistress: true, sent: true }) });
+  await first;
+  await tick();
+  assert.equal(h.stopped(), 1);
+  assert.equal(h.render({}).isActive, false);
+  assert.equal(h.requests.length, 1);
+  assert.equal(alerts.length, 1);
+  await h.send(new Blob(['after SOS']));
+  assert.equal(h.requests.length, 1);
+});
+
+test('busy analysis buffers only the latest five clips and submits them in order', async () => {
+  const firstResponse = deferred();
+  let calls = 0;
+  const h = modeHarness({ respond: () => ++calls === 1 ? firstResponse.promise :
+    Promise.resolve({ ok: true, json: async () => ({ isDistress: false }) }) });
+  await h.render({}).activate();
+  const first = h.send(new Blob(['first']));
+  for (let i = 0; i < 7; i++) await h.send(new Blob([String(i)]));
+  assert.equal(h.requests.length, 1);
+  firstResponse.resolve({ ok: true, json: async () => ({ isDistress: false }) });
+  await first;
+  await tick();
+  assert.equal(h.requests.length, 2);
+  const clips = h.requests[1].request.body.getAll('audio');
+  assert.deepEqual(await Promise.all(clips.map(clip => clip.text())), ['2', '3', '4', '5', '6']);
+  assert.equal(h.render({}).isLoading, false);
+});
+
 function modeHarness(options = {}) {
   let chunk;
   let stopped = 0;
@@ -57,7 +93,7 @@ test('voice uploads preserve zero coordinates, include cookies, and allow browse
   assert.equal(h.render({}).liveTranscript, 'hello');
 });
 
-test('overlapping chunks are skipped and stale distress responses cannot reopen an alert after stopping', async () => {
+test('buffered chunks are cleared and stale distress responses cannot reopen an alert after stopping', async () => {
   const response = deferred();
   const alerts = [];
   const h = modeHarness({ respond: () => response.promise });
@@ -78,14 +114,30 @@ test('overlapping chunks are skipped and stale distress responses cannot reopen 
   assert.equal(h.render({}).voiceStatus, '');
 });
 
-test('failed SMS distress responses remain visible and recording stays active', async () => {
+test('leaving a retained page stops audio but keeps the transcript and SOS result', async () => {
+  const h = modeHarness({ respond: async () => ({ ok: true, json: async () => ({ isDistress: true, sent: true, transcript: 'help me' }) }) });
+  await h.render({}).activate();
+  await h.send(new Blob(['audio']));
+  h.render({}).deactivate({ preserveOutput: true });
+  const state = h.render({});
+  assert.equal(state.isActive, false);
+  assert.equal(state.liveTranscript, 'help me');
+  assert.equal(state.alertData.isDistress, true);
+  assert.match(state.voiceStatus, /Microphone off/);
+  await h.send(new Blob(['hidden page']));
+  assert.equal(h.requests.length, 1);
+  assert.ok(h.stopped() > 0);
+});
+
+test('failed SMS distress responses remain visible and recording stops', async () => {
   const alerts = [];
   const h = modeHarness({ respond: async () => ({ ok: false, status: 502, json: async () => ({ isDistress: true, sent: false, sentTo: [], failedTo: ['test contact'], transcript: 'help' }) }) });
   await h.render({ onSOSTriggered: data => alerts.push(data) }).activate();
   await h.send(new Blob(['audio']));
   assert.equal(alerts.length, 1);
   assert.equal(alerts[0].sent, false);
-  assert.equal(h.render({}).isActive, true);
+  assert.equal(h.render({}).isActive, false);
+  assert.equal(h.stopped(), 1);
   assert.equal(h.render({}).isLoading, false);
   assert.match(h.render({}).voiceStatus, /could not be sent/);
 });
@@ -160,7 +212,7 @@ test('recorder finalizes each segment, restarts, and discards final audio on dea
   const h = recorderHarness();
   const state = h.render(blob => h.delivered.push(blob));
   assert.equal(await state.startRecording(), true);
-  assert.equal(h.recorders[0].timeslice, 4000);
+  assert.equal(h.recorders[0].timeslice, 2000);
   h.timers.values().next().value();
   await tick();
   assert.equal(h.delivered.length, 1);

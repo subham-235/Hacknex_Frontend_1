@@ -1,6 +1,7 @@
 ﻿import type { Metadata } from 'next';
 import './globals.css';
 import './redesign.css';
+import '@/app/studio.css';
 export const metadata: Metadata = {
   metadataBase: new URL(
     'https://suraksha-safety-workspace.sarmisthaad.chatgpt.site',
